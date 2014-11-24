@@ -118,15 +118,17 @@ classdef SimpleResourceBioSystem < BioSystem
         end   
         
         function g = addGene( self, varargin )
-            assert( length(varargin) == 2 || length(varargin) == 5 ...
-                , 'Requires %d or %d args', 2, 5 );
+            assert( length(varargin) == 2 || length(varargin) == 7 ...
+                , 'Requires %d or %d args', 2, 7 );
             if( length(varargin) == 2 )
                 g = varargin{1};
                 conc = varargin{2};
-            elseif( length(varargin) == 5 )
+            elseif( length(varargin) == 7 )
+                %Gene( name, mRNA, promoterStates, rnapOn, rnapOff,
+                %transitionMatrix )
                 g = Gene( varargin{1}, varargin{2}, varargin{3} ...
-                    , varargin{4} );
-                conc = varargin{5};
+                    , varargin{4}, varargin{5}, varargin{6} );
+                conc = varargin{7};
             end
             assert( ~isKey( self.genes, g.name ) ...
                     , 'System already contains gene named "%s"' ...
@@ -135,8 +137,8 @@ classdef SimpleResourceBioSystem < BioSystem
             
             g.accept( self, conc );
             
-            addlistener( g, 'kOnBasal', 'PostSet', @self.update );
-            addlistener( g, 'kOffBasal', 'PostSet', @self.update );
+            %addlistener( g, 'kOnBasal', 'PostSet', @self.update );
+            %addlistener( g, 'kOffBasal', 'PostSet', @self.update );
         end   
         
         function update( self, ~, e )

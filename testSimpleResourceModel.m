@@ -19,7 +19,8 @@ end
 sys = SimpleResourceBioSystem( 8, 2, 2, 2 );
 p = sys.addProtein( 'Protein', 0.1, 0 );
 m = sys.addmRNA( 'mRNA', p, 0.05, 1, 0.5, 0 );
-g = sys.addGene( 'Gene', m, 0.1, 1, 1 );
+%addGene( name, mRNA, promoterStates, rnapOn, rnapOff, transitionMatrix, copy# )
+g = sys.addGene( 'Gene', m, { [] }, [ 0.1 ], [ 1 ], zeros( 1, 1 ), 1 );
 
 indices = [ sys.indexOf(p) sys.indexOf(m) sys.indexOf(g) ...
     sys.indexOfRNAP() sys.indexOfRibo() ];
@@ -28,7 +29,8 @@ lgd = { 'Protein', 'mRNA', 'Gene', 'RNAP', 'Ribosome' };
 t = 0:100;
 [T,Y] = sys.run( t );
 
-f = figure( 'Visible', 'off' );
+%f = figure( 'Visible', 'off' );
+f = figure();
 hold on
 plot(T, Y(:,indices));
 legend( lgd );
@@ -49,7 +51,8 @@ sys.setRiboConcentration( 1 );
 t = 0:100;
 [T,Y] = sys.run( t );
 
-f = figure( 'Visible', 'off' );
+%f = figure( 'Visible', 'off' );
+f = figure();
 hold on
 plot(T, Y(:,indices));
 legend( lgd );
@@ -66,7 +69,8 @@ sys.setInitialValue( g, 5 );
 t = 0:100;
 [T,Y] = sys.run( t );
 
-f = figure( 'Visible', 'off' );
+%f = figure( 'Visible', 'off' );
+f = figure();
 hold on
 plot(T, Y(:,indices));
 legend( lgd );

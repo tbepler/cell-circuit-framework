@@ -13,6 +13,8 @@ classdef mRNA < handle
     
     methods
         function obj = mRNA( name, protein, kDeg, kOnRibo, kOffRibo )
+            %args are ( name, protein, degredation rate, ribosome on rate,
+            %ribosome off rate )
             obj.name = name;
             obj.protein = protein;
             obj.kDeg = kDeg;

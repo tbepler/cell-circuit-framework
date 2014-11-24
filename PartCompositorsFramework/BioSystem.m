@@ -70,6 +70,7 @@ classdef BioSystem < handle
                     end
                 end
                 % find the symbolic rate functions
+                %self.symbols
                 for k = 1:length(self.compositors)
                     % find the symbolic expression and substitute constants for
                     % their values

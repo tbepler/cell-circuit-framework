@@ -10,6 +10,7 @@ classdef Protein < handle
     
     methods
         function obj = Protein( name, kDeg )
+            %args are (name, degredation rate)
             obj.name = name;
             obj.kDeg = kDeg;
         end
