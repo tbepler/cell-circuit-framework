@@ -32,6 +32,10 @@ classdef Protein < handle
             sys.ChangeConstant( kDegName(self), self.kDeg );
         end
         
+        function s = kDegLabel( self )
+            s = kDegName( self );
+        end
+        
     end 
 end
 

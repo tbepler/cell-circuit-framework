@@ -7,6 +7,7 @@ classdef Const < handle
         name
         s         % symbol object
         v = 0;    % value (typically some rate constant or K_d)
+        orig_v;
     end
     
     methods
@@ -16,6 +17,7 @@ classdef Const < handle
             Co.name  = ConstName;
             Co.s     = sym(ConstName);
             Co.v     = Value;
+            Co.orig_v = Value;
         end
     end
     

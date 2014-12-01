@@ -1,4 +1,5 @@
-function [P,D] = searchFFL()
+function optimizeFFL(plot)
+
 
 set(0,'DefaultAxesFontSize', 20)
 set(0,'DefaultTextFontSize', 20)
@@ -10,32 +11,19 @@ ymin = 0;
 ymax = 25;
 %set(0,'DefaultFigureColor','w')
 
-output = 'figures/ffl/gridSearch/edgeDetector_gridSearch';
-
-diary( 'figures/ffl/gridSearch/edgeDetector_gridSearch_results.txt' );
-diary on
+output = 'figures/ffl/optimize/edgeDetector_optimized';
 
 if( ~exist( output, 'dir' ) )
     mkdir(output);
 end
 
+%diary( 'figures/ffl/optimize/edgeDetector_optimize_results.txt' );
+%diary on
+
 pulses = [ Pulse( 0, @(sys) sys ) ...
            Pulse( 20, @(sys) sys.ChangeInitialValue( 'X', 10 ) ) ...
            Pulse( 140, @(sys) sys.ChangeConstant( 'gamma_X', 10 ) ) ...
            Pulse( 200, @(sys) sys ) ];
-%            Pulse( 141, 'X', 0 ) ...
-%            Pulse( 142, 'X', 0 ) ...
-%            Pulse( 143, 'X', 0 ) ...
-%            Pulse( 144, 'X', 0 ) ...
-%            Pulse( 145, 'X', 0 )...
-%            Pulse( 146, 'X', 0 ) ...
-%            Pulse( 147, 'X', 0 ) ...
-%            Pulse( 148, 'X', 0 ) ...
-%            Pulse( 149, 'X', 0 ) ...
-%            Pulse( 150, 'X', 0 ) ...
-%            Pulse( 200, 'X', 0 ) ];
-       
-       
        
     function o = obj( T )
         o = zeros( size(T) );
@@ -47,60 +35,57 @@ pulses = [ Pulse( 0, @(sys) sys ) ...
         end
     end
 
-%Zt = [ zeros( 20, 1 ); repmat( 10, 10, 1 ); zeros( 170, 1 ) ];
-       
 lgd = { 'X', 'Y', 'Z', 'Y_{mRNA}', 'Z_{mRNA}'};
 
 Ribo = 1000;
 
-unbind = [ 5 ];
-coop = [ 1 4 ];
+%y_unbindX z_unbindX z_unbindY x_coop y_coop
+x0 = [ 5 5 10 2 4 ];
+LB = [ 1 1 1 1 1 ];
+UB = [ 50 50 50 8 8 ];
 
-disp( 'y_unbindX z_unbindX z_unbindY x_coop y_coop distance file' );
+opts = psoptimset( 'Display', 'iter' );
+[optParams, dist] = patternsearch( @distanceFromTarget, x0, ...
+    [], [], [], [], LB, UB, [], opts );
 
-[y_unbindXGrid, z_unbindXGrid, z_unbindYGrid, x_coopGrid, y_coopGrid ] = ndgrid( unbind, unbind, unbind, coop, coop );
-V = gridSearch( @distanceFromTarget, y_unbindXGrid, z_unbindXGrid ...
-    , z_unbindYGrid, x_coopGrid, y_coopGrid );
+P = optParams;
+D = dist;
 
-[m,I] = min(V(:));
-
-P = [ y_unbindXGrid(I) z_unbindXGrid(I) z_unbindYGrid(I) x_coopGrid(I) y_coopGrid(I) ];
-D = m;
-
-diary;
-diary off;
+if(nargin > 0 && plot)
+    
+    [Y,T] = simulate( P );
+    
+    f = figure();
+    hold on
+    plot(T, Y);
+    plot(T, obj(T), 'k');
+    legend( [lgd, {'Objective'} ] );
+    ylim([ymin ymax])
+    xlabel('Time');
+    ylabel('Concentration')
+    hold off
+    
+    name = [ output ];
+    for k = 1:length(params)
+        name = [ name '_' num2str(params(k)) ];
+    end
+    
+    print(f, name, res, format);
+    
+end
 
     function dist = distanceFromTarget( params )
         [Y,T] = simulate( params );
-        dist = distance( Y(:,3), obj(T) );
-        msg = [];
-        for k = 1:length(params)
-            msg = [msg num2str(params(k)) ' '];
-        end
-        
-        %f = figure( 'Visible', 'off' );
-        f = figure();
-        hold on
-        plot(T, Y);
-        plot(T, obj(T), 'k');
-        legend( [lgd, {'Objective'} ] );
-        ylim([ymin ymax])
-        xlabel('Time');
-        ylabel('Concentration')
-        hold off
-        
-        name = [ output ];
-        for k = 1:length(params)
-            name = [ name '_' num2str(params(k)) ];
-        end
-        
-        disp( [msg num2str(dist) ' ' name] );
-        
-        print(f, name, res, format);
+        dist = distance( Y(:,3), T );
     end
 
-    function d = distance( X, Xt )
-        d = sum( ( X - Xt ) .^ 2 );
+    function d = distance( Y, T )
+        %d = sum( ( Y - obj(T) ) .^ 2 );
+        objHigh = T > 20 & T <= 30;
+        pulse = T > 20 & T <= 140;
+        p = sum( Y(objHigh) ) / sum(objHigh);
+        np = sum( Y(pulse & ~objHigh) ) / (sum(pulse & ~objHigh) );
+        d = -(p / np);
     end
 
     function [Y,T] =  simulate( params )

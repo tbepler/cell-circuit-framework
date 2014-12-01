@@ -128,6 +128,14 @@ classdef BioSystem < handle
             for i = 1:length(self.compositors)
                 self.compositors(i).iv = self.compositors(i).orig_iv;
             end
+            for i = 1:length(self.constants)
+                v = self.constants(i).v;
+                ov = self.constants(i).orig_v;
+                if v ~= ov
+                    self.constants(i).v = ov;
+                    self.reset_rates();
+                end
+            end
         end
         
         %
@@ -137,15 +145,19 @@ classdef BioSystem < handle
             self.determine_rates() % safe to call multiple times
             
             % initial values
-            y0 = zeros(length(self.compositors), 1);
-            for i = 1:length(self.compositors)
-                y0(i) = self.compositors(i).iv;
-            end
+            y0 = self.initialValues();
             %disp('debug: have set initial values');
             [ T, Y ] = ode23s(@self.sys_ode, tspan, y0);
             %disp('debug: ran ode23s');
         end
        
+        function y0 = initialValues(self)
+            y0 = zeros(length(self.compositors), 1);
+            for i = 1:length( self.compositors)
+                y0(i) = self.compositors(i).iv;
+            end
+        end
+        
         %
         % ODE of system
         %
@@ -194,12 +206,8 @@ classdef BioSystem < handle
             for i = 1:num_pulses - 1 % last pulse is not actually simulated
                 pulse = pulse_series(i);
 
-                % find appropriate compositor & set its initial value
-                if ~isempty(pulse.compositor_name)
-                    self.compositors(...
-                        self.map_compositors(pulse.compositor_name)).iv = ...
-                            pulse.value;
-                end
+                % call the pulse function
+                pulse.f( self );
                
                 % run simulation until the next pulse, i.e. from 0 for the
                 % amount of time between this and the next pulse

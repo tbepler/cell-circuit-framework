@@ -5,15 +5,13 @@ classdef Pulse < handle
     
     properties
         time
-        compositor_name
-        value
+        f
     end
     
     methods
-        function Pu = Pulse(time, compositor_name, value)
+        function Pu = Pulse(time, f)
             Pu.time = time;
-            Pu.compositor_name = compositor_name;
-            Pu.value = value;
+            Pu.f = f;
         end
     end
     
