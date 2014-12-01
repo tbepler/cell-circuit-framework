@@ -96,27 +96,31 @@ classdef Gene < handle
                         sys.AddConstant( rate, self.transitionMatrix( i, j ) );
                         
                         [removeProts, addProts] = listDiff( fromProts, toProts );
+                        [removeProts, removeCoops] = count( removeProts );
+                        [addProts, addCoops] = count( addProts );
                         trans = [ rate, '*', fromName ];
-                        for prot = addProts
-                            trans = [ trans, '*', prot.name ];
+                        A = length( addProts );
+                        R = length( removeProts);
+                        for k = 1:A
+                            trans = [ trans, '*', addProts(k).name, '^', num2str(addCoops(k)) ];
                         end
                         %disp( trans );
                         compositors = [ fromComp, toComp ];
                         rates = [ Rate( [ '-' trans ] ) ...
                                  ,Rate( [ '+' trans ] ) ];
                         %add the removed protein compositors and rates
-                        for prot = removeProts
-                            compositor = sys.getCompositor( prot );
+                        for k = 1:R
+                            compositor = sys.getCompositor( removeProts(k) );
                             compositors = [ compositors, compositor ];
                             rates = [ rates ...
-                                , Rate( [ '+' trans ] ) ];
+                                , Rate( [ '+' num2str(removeCoops(k)) '*' trans ] ) ];
                         end
                         %add the added protein compositors and rates
-                        for prot = addProts
-                            compositor = sys.getCompositor( prot );
+                        for k = 1:A
+                            compositor = sys.getCompositor( addProts(k) );
                             compositors = [ compositors, compositor ];
                             rates = [ rates ...
-                                , Rate( [ '-' trans ] ) ] ;
+                                , Rate( [ '-' num2str(addCoops(k)) '*' trans ] ) ] ;
                         end
                         
                         %add the part
