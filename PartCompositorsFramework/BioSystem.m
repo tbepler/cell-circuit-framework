@@ -142,7 +142,6 @@ classdef BioSystem < handle
                 y0(i) = self.compositors(i).iv;
             end
             %disp('debug: have set initial values');
-            
             [ T, Y ] = ode23s(@self.sys_ode, tspan, y0);
             %disp('debug: ran ode23s');
         end
@@ -152,7 +151,7 @@ classdef BioSystem < handle
         %
         function dy = sys_ode(self, t, y)
             dy = zeros(length(y), 1);
-
+            
             cellarray = num2cell(y); % hack to unpack the vector. optimize?
             %cellarray = cellarray{:};
             comps = self.compositors;

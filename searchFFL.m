@@ -1,8 +1,8 @@
-function searchFFL()
+function [P,D] = searchFFL()
 
-set(0,'DefaultAxesFontSize', 16)
-set(0,'DefaultTextFontSize', 16)
-set(0,'DefaultLineLinewidth',2)
+set(0,'DefaultAxesFontSize', 20)
+set(0,'DefaultTextFontSize', 20)
+set(0,'DefaultLineLinewidth',3)
 
 res = '-r900';
 format = '-depsc';
@@ -10,7 +10,10 @@ ymin = 0;
 ymax = 25;
 %set(0,'DefaultFigureColor','w')
 
-output = 'figures/ffl/edgeDetector_gridSearch';
+output = 'figures/ffl/gridSearch/edgeDetector_gridSearch';
+
+diary( 'figures/ffl/gridSearch/edgeDetector_gridSearch_results.txt' );
+diary on
 
 if( ~exist( output, 'dir' ) )
     mkdir(output);
@@ -52,22 +55,47 @@ Ribo = 1000;
 unbind = [ 5 10 20 ];
 coop = [ 1 2 4 8 ];
 
+disp( 'y_unbindX z_unbindX z_unbindY x_coop y_coop distance file' );
+
 [y_unbindXGrid, z_unbindXGrid, z_unbindYGrid, x_coopGrid, y_coopGrid ] = ndgrid( unbind, unbind, unbind, coop, coop );
 V = gridSearch( @distanceFromTarget, y_unbindXGrid, z_unbindXGrid ...
     , z_unbindYGrid, x_coopGrid, y_coopGrid );
 
-[m,I] = min(V);
+[m,I] = min(V(:));
 
-y_unbindXGrid(I)
-z_unbindXGrid(I)
-z_unbindYGrid(I)
-x_coopGrid(I)
-y_coopGrid(I)
-m
+P = [ y_unbindXGrid(I) z_unbindXGrid(I) z_unbindYGrid(I) x_coopGrid(I) y_coopGrid(I) ];
+D = m;
+
+diary;
+diary off;
 
     function dist = distanceFromTarget( params )
         [Y,T] = simulate( params );
-        dist = distance( Y(3), obj(T) );
+        dist = distance( Y(:,3), obj(T) );
+        msg = [];
+        for k = 1:length(params)
+            msg = [msg num2str(params(k)) ' '];
+        end
+        
+        %f = figure( 'Visible', 'off' );
+        f = figure();
+        hold on
+        plot(T, Y);
+        plot(T, obj(T), 'k');
+        legend( [lgd, {'Objective'} ] );
+        ylim([ymin ymax])
+        xlabel('Time');
+        ylabel('Concentration')
+        hold off
+        
+        name = [ output ];
+        for k = 1:length(params)
+            name = [ name '_' num2str(params(k)) ];
+        end
+        
+        disp( [msg num2str(dist) ' ' name] );
+        
+        print(f, name, res, format);
     end
 
     function d = distance( X, Xt )
@@ -81,11 +109,6 @@ m
         z_unbindY = params(3);
         x_coop = params(4);
         y_coop = params(5);
-        msg = 'Trying params: ';
-        for k = 1:length(params)
-            msg = [msg ' ' num2str(params(k))];
-        end
-        disp( msg );
         
         [sys, x, y, z, y_mrna, z_mrna ] = createIncoherentFFL( ...
             100 ... %total RNAP
@@ -133,23 +156,6 @@ m
            ];
        
         Y = Y(:, indices);
-        
-        %f = figure( 'Visible', 'off' );
-        f = figure();
-        hold on
-        plot(T, Y);
-        plot(T, obj(T), 'k');
-        legend( [lgd, {'Objective'} ] );
-        ylim([ymin ymax])
-        xlabel('Time');
-        ylabel('Concentration')
-        hold off
-        
-        name = [ output ];
-        for k = 1:length(params)
-            name = [ name '_' num2str(params(k)) ];
-        end
-        print(f, name, res, format);
         
     end
 

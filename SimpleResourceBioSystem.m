@@ -146,7 +146,6 @@ classdef SimpleResourceBioSystem < BioSystem
         end
         
         function delete( self )
-            disp( 'Delete called' );
             self.proteins = [];
             self.mRNAs = [];
             self.genes = [];
