@@ -154,8 +154,10 @@ classdef BioSystem < handle
             dy = zeros(length(y), 1);
 
             cellarray = num2cell(y); % hack to unpack the vector. optimize?
-            for i = 1:length(self.compositors)
-                dy(i) = self.compositors(i).ratef(cellarray{:});
+            %cellarray = cellarray{:};
+            comps = self.compositors;
+            parfor i = 1:length(comps)
+                dy(i) = comps(i).ratef(cellarray{:});
             end
         end
         
