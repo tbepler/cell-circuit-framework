@@ -101,6 +101,8 @@ pulses = [ Pulse( 0, 'X', 0 ) ...
            Pulse( 200, 'X', 0 ) ];
            %Pulse( 80, 'X', 0 ) ...
            %Pulse( 100, 'X', 0 ) ]; 
+
+Zt = [ zeros( 20, 1 ), repmat( 10, 10, 1 ), zeros( 170, 1 ) ];
 [T,Y] = sys.run_pulses( pulses );
 
 %f = figure( 'Visible', 'off' );
