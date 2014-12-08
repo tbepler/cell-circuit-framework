@@ -9,10 +9,11 @@ classdef mRNA < handle
         kDeg
         kOnRibo
         kOffRibo
+        kRiboInit
     end
     
     methods
-        function obj = mRNA( name, protein, kDeg, kOnRibo, kOffRibo )
+        function obj = mRNA( name, protein, kDeg, kOnRibo, kOffRibo, kRiboInit )
             %args are ( name, protein, degredation rate, ribosome on rate,
             %ribosome off rate )
             obj.name = name;
@@ -20,6 +21,7 @@ classdef mRNA < handle
             obj.kDeg = kDeg;
             obj.kOnRibo = kOnRibo;
             obj.kOffRibo = kOffRibo;
+            obj.kRiboInit = kRiboInit;
         end
         
         function self = accept( self, sys, initVal )
@@ -30,11 +32,12 @@ classdef mRNA < handle
             sys.AddConstant( kDegName(self) , self.kDeg );
             sys.AddConstant( kOnRiboName(self), self.kOnRibo );
             sys.AddConstant( kOffRiboName(self), self.kOffRibo );
+            sys.AddConstant( kRiboInitName(self), self.kRiboInit );
             
             %add part for degradation
-            rate = Rate( [ '- ', kDegName(self), ' * ', self.name ] );
+            deg = Rate( [ '- ', kDegName(self), ' * ', self.name ] );
             sys.AddPart( Part( [self.name, ' degradation'] ...
-                , comp, rate ) );
+                , comp, deg ) );
             
             %add model for translation
             protComp = sys.getCompositor( self.protein );
@@ -45,7 +48,7 @@ classdef mRNA < handle
                 , ' * ', sys.RIBO_NAME ];
             unbinding = [ kOffRiboName(self) '*' ...
                 riboComplexName(self) ];
-            tln = [ sys.K_TLN_NAME '*' riboComplexName(self) ];
+            tln = [ kRiboInitName(self) '*' riboComplexName(self) ];
             
             sys.AddPart( Part( [self.name ' translation'] ...
                 , [ comp riboComp complex protComp ] ...
@@ -53,6 +56,13 @@ classdef mRNA < handle
                     Rate( [ '-' binding '+' unbinding '+' tln ] ) ...
                     Rate( [ '+' binding '-' unbinding '-' tln ] ) ...
                     Rate( [ '+' tln ] ) ] ) );
+                
+                %Ribosome bound mRNA also degrades
+             deg = ['- ', kDegName(self), ' * ', riboComplexName(self) ];
+             sys.AddPart( Part( [riboComplexName(self), ' mRNA degredation'] ...
+                 , [ complex riboComp ] ...
+                 , [ Rate( deg ) ...
+                     Rate( [ '-' deg ] ) ] ) );
             
         end
         
@@ -60,6 +70,7 @@ classdef mRNA < handle
             sys.ChangeConstant( kDegName(self), self.kDeg );
             sys.ChangeConstant( kOnRiboName(self), self.kOnRibo );
             sys.ChangeConstant( kOffRiboName(self), self.kOffRibo );
+            sys.ChangeConstant( kRiboInitName(self), self.kRiboInit );
         end
         
     end 
@@ -72,6 +83,10 @@ end
 
 function name = kDegName( obj )
     name = [ 'gamma_',obj.name ];
+end
+
+function name = kRiboInitName( obj )
+    name = [ 'k_riboInit_', obj.name ];
 end
 
 function name = kOnRiboName( obj )

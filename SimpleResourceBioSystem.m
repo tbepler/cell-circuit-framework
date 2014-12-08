@@ -28,8 +28,8 @@ classdef SimpleResourceBioSystem < BioSystem
             obj.AddCompositor( obj.RNAP );
             obj.AddCompositor( obj.Ribo );
             
-            obj.AddConstant( obj.K_TXN_NAME, kTxn );
-            obj.AddConstant( obj.K_TLN_NAME, kTln );
+            obj.AddConstant( obj.K_TXN_NAME, kTxn ); %CURRENTLY IGNORED
+            obj.AddConstant( obj.K_TLN_NAME, kTln ); %CURRENTLY IGNORED
             
             obj.proteins = containers.Map;
             obj.mRNAs = containers.Map;
@@ -95,15 +95,15 @@ classdef SimpleResourceBioSystem < BioSystem
         end     
         
         function m = addmRNA( self, varargin )
-            assert( length(varargin) == 2 || length(varargin) == 6 ...
-                , 'Requires %d or %d args', 2, 6 );
+            assert( length(varargin) == 2 || length(varargin) == 7 ...
+                , 'Requires %d or %d args', 2, 7 );
             if( length(varargin) == 2 )
                 m = varargin{1};
                 conc = varargin{2};
-            elseif( length(varargin) == 6 )
+            elseif( length(varargin) == 7 )
                 m = mRNA( varargin{1}, varargin{2}, varargin{3} ...
-                    , varargin{4}, varargin{5} );
-                conc = varargin{6};
+                    , varargin{4}, varargin{5}, varargin{6} );
+                conc = varargin{7};
             end
             assert( ~isKey( self.mRNAs, m.name ) ...
                     , 'System already contains mRNA named "%s"' ...
@@ -118,17 +118,18 @@ classdef SimpleResourceBioSystem < BioSystem
         end   
         
         function g = addGene( self, varargin )
-            assert( length(varargin) == 2 || length(varargin) == 7 ...
-                , 'Requires %d or %d args', 2, 7 );
+            assert( length(varargin) == 2 || length(varargin) == 8 ...
+                , 'Requires %d or %d args', 2, 8 );
             if( length(varargin) == 2 )
                 g = varargin{1};
                 conc = varargin{2};
-            elseif( length(varargin) == 7 )
+            elseif( length(varargin) == 8 )
                 %Gene( name, mRNA, promoterStates, rnapOn, rnapOff,
+                %rnapInit,
                 %transitionMatrix )
                 g = Gene( varargin{1}, varargin{2}, varargin{3} ...
-                    , varargin{4}, varargin{5}, varargin{6} );
-                conc = varargin{7};
+                    , varargin{4}, varargin{5}, varargin{6}, varargin{7} );
+                conc = varargin{8};
             end
             assert( ~isKey( self.genes, g.name ) ...
                     , 'System already contains gene named "%s"' ...

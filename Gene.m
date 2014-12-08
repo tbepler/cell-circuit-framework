@@ -6,6 +6,7 @@ classdef Gene < handle
         promoterStates
         rnapOn
         rnapOff
+        rnapInit
         transitionMatrix
     end
     
@@ -23,12 +24,13 @@ classdef Gene < handle
         %transition matrix is an NxN matrix where N is the number of
         %promoter states specifying the transition rate for going from
         %state i to state j
-        function obj = Gene( name, mRNA, promoterStates, rnapOn, rnapOff, transitionMatrix )
+        function obj = Gene( name, mRNA, promoterStates, rnapOn, rnapOff, rnapInit, transitionMatrix )
             obj.name = name;
             obj.mRNA = mRNA;
             obj.promoterStates = promoterStates;
             obj.rnapOn = rnapOn;
             obj.rnapOff = rnapOff;
+            obj.rnapInit = rnapInit;
             obj.transitionMatrix = transitionMatrix;
             %obj.kOnBasal = kOnBasal;
             %obj.kOffBasal = kOffBasal;
@@ -65,13 +67,15 @@ classdef Gene < handle
                 sys.AddConstant( rnapOnConst, self.rnapOn(i) );
                 rnapOffConst = [ 'k_', sys.RNAP_NAME, '_off_', sRNAPName ];
                 sys.AddConstant( rnapOffConst, self.rnapOff(i) );
+                rnapInitConst = [ 'k_', sys.RNAP_NAME, '_init_', sRNAPName ];
+                sys.AddConstant( rnapInitConst, self.rnapInit(i) );
                 
                 %add parts for RNAP binding and transcription
                 rna = sys.getCompositor( self.mRNA );
                 rnap = sys.RNAP;
                 binding = [ rnapOnConst, ' * ', sName, ' * ', sys.RNAP_NAME];
                 unbinding = [ rnapOffConst, ' * ', sRNAPName ];
-                txn = [ sys.K_TXN_NAME, ' * ', sRNAPName ];
+                txn = [ rnapInitConst, ' * ', sRNAPName ];
                 
                 sys.AddPart( Part( [sName, ' transcription'] ...
                     , [ sComp, rnap, sRNAPComp, rna ] ...
@@ -98,12 +102,13 @@ classdef Gene < handle
                         [removeProts, addProts] = listDiff( fromProts, toProts );
                         [removeProts, removeCoops] = count( removeProts );
                         [addProts, addCoops] = count( addProts );
-                        trans = [ rate, '*', fromName ];
+                        trans = [ 'exp(' rate, '+ log(', fromName ')' ];
                         A = length( addProts );
                         R = length( removeProts);
                         for k = 1:A
-                            trans = [ trans, '*', addProts(k).name, '^', num2str(addCoops(k)) ];
+                            trans = [ trans, '+ log(', addProts(k).name, ')*', num2str(addCoops(k)) ];
                         end
+                        trans = [ trans ')' ];
                         %disp( trans );
                         compositors = [ fromComp, toComp ];
                         rates = [ Rate( [ '-' trans ] ) ...

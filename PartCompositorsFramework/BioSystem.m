@@ -80,7 +80,7 @@ classdef BioSystem < handle
                                 constant_syms, ...
                                 constant_vals);
                     self.compositors(k).ratef = matlabFunction(...
-                        symexpr, 'vars', self.symbols);
+                        symexpr, 'vars', {self.symbols});
                 end
                 self.rates_determined = true;
                 %disp('debug: determined rate functions');
@@ -143,11 +143,27 @@ classdef BioSystem < handle
         %
         function [T, Y] = run(self, tspan)
             self.determine_rates() % safe to call multiple times
+%             if nargin < 3
+%                 granularity = ( max(tspan) - min(tspan)) / 10000;
+%             end
             
             % initial values
             y0 = self.initialValues();
+%             T = min(tspan):granularity:max(tspan);
+%             T(1) = tspan(1);
+%             Y = zeros( length(T), length(y0) );
+%             Y(1,:) = y0;
+%             for i = 2:length(T)
+%                 dy = self.sys_ode( 0, Y(i-1,:)' );
+%                 Y(i,:) = Y(i-1,:) + granularity .* dy;
+%             end
+            
+
+            %
             %disp('debug: have set initial values');
             [ T, Y ] = ode23s(@self.sys_ode, tspan, y0);
+            %T = gather(T);
+            %Y = gather(Y);
             %disp('debug: ran ode23s');
         end
        
@@ -162,14 +178,16 @@ classdef BioSystem < handle
         % ODE of system
         %
         function dy = sys_ode(self, t, y)
-            dy = zeros(length(y), 1);
             
-            cellarray = num2cell(y); % hack to unpack the vector. optimize?
-            %cellarray = cellarray{:};
             comps = self.compositors;
+            dy = zeros( length(y), 1  );
+            
+            %cellarray = num2cell(y); % hack to unpack the vector. optimize?
+            %cellarray = cellarray{:};
             for i = 1:length(comps)
-                dy(i) = comps(i).ratef(cellarray{:});
+                dy(i) = real(comps(i).ratef(y));
             end
+            %dy
         end
         
         % Run simulation with a given series of "inputs", i.e. run a

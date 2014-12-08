@@ -1,9 +1,9 @@
-function optimizeFFL(plot)
+function [P,D] = optimizeFFL(plotResults)
 
 
 set(0,'DefaultAxesFontSize', 20)
 set(0,'DefaultTextFontSize', 20)
-set(0,'DefaultLineLinewidth',3)
+set(0,'DefaultLineLinewidth',2.5)
 
 res = '-r900';
 format = '-depsc';
@@ -11,7 +11,7 @@ ymin = 0;
 ymax = 25;
 %set(0,'DefaultFigureColor','w')
 
-output = 'figures/ffl/optimize/edgeDetector_optimized';
+output = 'figures/ffl/optimize/';
 
 if( ~exist( output, 'dir' ) )
     mkdir(output);
@@ -20,17 +20,21 @@ end
 %diary( 'figures/ffl/optimize/edgeDetector_optimize_results.txt' );
 %diary on
 
+X_high_start = 20;
+X_high_end = 140;
+Z_duration_obj = 10;
+
 pulses = [ Pulse( 0, @(sys) sys ) ...
-           Pulse( 20, @(sys) sys.ChangeInitialValue( 'X', 10 ) ) ...
-           Pulse( 140, @(sys) sys.ChangeConstant( 'gamma_X', 10 ) ) ...
+           Pulse( X_high_start, @(sys) sys.ChangeInitialValue( 'X', 10 ) ) ...
+           Pulse( X_high_end, @(sys) sys.ChangeConstant( 'gamma_X', 10 ) ) ...
            Pulse( 200, @(sys) sys ) ];
        
     function o = obj( T )
         o = zeros( size(T) );
         for i = 1:numel(T)
             t = T(i);
-            if t > 20 && t <= 30 
-                o(i) = 10;
+            if t > X_high_start && t <= X_high_start + Z_duration_obj
+                o(i) = 15;
             end
         end
     end
@@ -39,25 +43,30 @@ lgd = { 'X', 'Y', 'Z', 'Y_{mRNA}', 'Z_{mRNA}'};
 
 Ribo = 1000;
 
-%y_unbindX z_unbindX z_unbindY x_coop y_coop
-x0 = [ 5 5 10 2 4 ];
-LB = [ 1 1 1 1 1 ];
-UB = [ 50 50 50 8 8 ];
+%y_deg z_deg y_ribo_off z_ribo_off z_unbindY y_coop
+x0 = [ 2 2 50 50 10 4 ];
+LB = [ 1 1 1 1 1 1 ];
+UB = [ 100 100 100 100 100 5 ];
 
-opts = psoptimset( 'Display', 'iter' );
+    function [C,Ceq] = nonlcon( x )
+        C = 0;
+        Ceq = ~( x(4) == floor( x(4) ) && x(5) == floor( x(5) ) );
+    end
+
+opts = psoptimset( 'Display', 'iter', 'UseParallel', true, 'TolFun', 1e-3 );
 [optParams, dist] = patternsearch( @distanceFromTarget, x0, ...
     [], [], [], [], LB, UB, [], opts );
 
 P = optParams;
 D = dist;
 
-if(nargin > 0 && plot)
+if(nargin > 0 && plotResults)
     
     [Y,T] = simulate( P );
     
     f = figure();
     hold on
-    plot(T, Y);
+    plot(T,Y);
     plot(T, obj(T), 'k');
     legend( [lgd, {'Objective'} ] );
     ylim([ymin ymax])
@@ -65,10 +74,11 @@ if(nargin > 0 && plot)
     ylabel('Concentration')
     hold off
     
-    name = [ output ];
-    for k = 1:length(params)
-        name = [ name '_' num2str(params(k)) ];
+    name = [ output 'edgeDetector_optimized' ];
+    for k = 1:length(P)
+        name = [ name '_' num2str(P(k)) ];
     end
+    name = [ name '.eps' ];
     
     print(f, name, res, format);
     
@@ -81,20 +91,22 @@ end
 
     function d = distance( Y, T )
         %d = sum( ( Y - obj(T) ) .^ 2 );
-        objHigh = T > 20 & T <= 30;
-        pulse = T > 20 & T <= 140;
+        objHigh = T > X_high_start & T <= X_high_start + Z_duration_obj;
+        pulse = T > X_high_start & T <= X_high_end;
         p = sum( Y(objHigh) ) / sum(objHigh);
         np = sum( Y(pulse & ~objHigh) ) / (sum(pulse & ~objHigh) );
-        d = -(p / np);
+        bg = sum( Y(~pulse) ) / sum(~pulse) ;
+        d = - p + np + abs( np - bg );
     end
 
     function [Y,T] =  simulate( params )
         
-        y_unbindX = params(1);
-        z_unbindX = params(2);
-        z_unbindY = params(3);
-        x_coop = params(4);
-        y_coop = params(5);
+        y_deg = params(1);
+        z_deg = params(2);
+        y_ribo_off = params(3);
+        z_ribo_off = params(4);
+        z_unbindY = params(5);
+        y_coop = round( params(6) ); %cooperitivity must be an integer
         
         [sys, x, y, z, y_mrna, z_mrna ] = createIncoherentFFL( ...
             100 ... %total RNAP
@@ -103,35 +115,35 @@ end
             , 1 ... % k_tln
             , 0 ... % x_deg
             , 0 ... % x_init
-            , 2 ... % y_deg
+            , y_deg ... % y_deg
             , 0 ... % y_init
-            , 1 ... % z_deg
+            , z_deg ... % z_deg
             , 0 ... % z_init
             , 5 ... % y_rna_deg
             , 1 ... % y_ribo_on
-            , 50 ... % y_ribo_off
+            , y_ribo_off ... % y_ribo_off
             , 0 ... % y_rna_init
             , 5 ... % z_rna_deg
             , 1 ... % z_ribo_on
-            , 50 ... % z_ribo_off
+            , z_ribo_off ... % z_ribo_off
             , 0 ... % z_rna_init
             , 1 ... % y_rnap_on
             , 10 ... % y_rnap_off
             , 1 ... y_bindX
-            , y_unbindX ... y_unbindX
+            , 2 ... y_unbindX
             , 1 ... y_copy_number
             , 1 ... z_rnap_on
             , 10 ... z_rnap_off
             , 1 ... z_bindX
-            , z_unbindX ... z_unbindX
+            , 2 ... z_unbindX
             , 1 ... z_bindY
             , z_unbindY ... z_unbindY
             , 1 ... zy_bindX
-            , z_unbindX ... zy_unbindX
+            , 2 ... zy_unbindX
             , 1 ... zx_bindY
             , z_unbindY ... zx_unbindY
             , 1 ... z_copy_number
-            , x_coop ... x_coop
+            , 1 ... x_coop
             , y_coop ... y_coop
             );
         
