@@ -2,3 +2,5 @@
 figures/**
 *.asv
 *~
+*.swp
+*.out
