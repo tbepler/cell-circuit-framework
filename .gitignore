@@ -1,3 +1,8 @@
+c_utils
+*.png
+*.txt
+*.o
+*.swo
 *.mexa64
 figures/**
 *.asv
