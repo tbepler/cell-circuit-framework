@@ -4,6 +4,7 @@
 #include<string.h>
 #include<getopt.h>
 #include<assert.h>
+#include<time.h>
 #include"c_utils/file.h"
 #include"c_utils/array.h"
 #include"c_utils/optimize.h"
@@ -68,6 +69,8 @@ typedef struct Constants{
     double gene_y_active_txn;
 
 } Constants;
+
+void printConstants( FILE* f, Constants* consts );
 
 
 typedef struct Species{
@@ -350,6 +353,7 @@ typedef struct OptimOpts{
     double tend;
     double tstep;
     int report_iters;
+    int random;
     Species* init_values;
     Constants* min;
     Constants* max;
@@ -368,6 +372,7 @@ OptimOpts defaultOptimOpts( void ) {
         DEFAULT_TEND,
         DEFAULT_TSTEP,
         DEFAULT_REPORT_ITERS,
+        -1,
         &initValues,
         NULL,
         NULL
@@ -426,13 +431,35 @@ double objective( const double* params, size_t n, void* optimopts ){
 
 }
 
+inline double randomDouble( void ){
+    return ((double) random() / (double) RAND_MAX);
+}
+
+inline double randomRange( double min, double max ){
+    return min + randomDouble()*( max - min );
+}
+
+inline double randomVectorRange( double* vec, double* min, double* max, size_t n ){
+    size_t i;
+    for( i = 0 ; i < n ; ++i ){
+        vec[i] = randomRange( min[i], max[i] );
+    }
+}
+
+inline double copy( double* dest, const double* src, size_t n ){
+    size_t i;
+    for( i = 0 ; i < n ; ++i ){
+        dest[i] = src[i];
+    }
+}
+
 void optimize( Constants* consts, Species* init_vals, OptimOpts* opts ){
     
     double v0[21];
     constantsToArray( consts, v0 );
     double result[21];
     
-    double ub[21];
+    double ub[21] = {INFINITY};
     if( opts->max != NULL ){
         
         constantsToArray( opts->max, ub );
@@ -449,7 +476,7 @@ void optimize( Constants* consts, Species* init_vals, OptimOpts* opts ){
 
     }
 
-    double lb[21];
+    double lb[21] = {-INFINITY};
     if( opts->min != NULL ){
 
         constantsToArray( opts->min, lb );
@@ -465,6 +492,29 @@ void optimize( Constants* consts, Species* init_vals, OptimOpts* opts ){
         opts->patopts.lower_bound = lb;
 
     }
+
+    if( opts-> random > 0 ){
+        //initialize v0 by randomly sampling parameters random times
+        //between lower bound and upper bound
+        srand( (unsigned) time( NULL ) ); //seed the random number generator
+        double rand[21];
+        double best = objective( v0, 21, opts);
+        int random = opts->random;
+        fprintf( stderr, "Sampling starting parameters %d times...\n", random );
+        while( random-- > 0 ){
+            randomVectorRange( rand, lb, ub, 21 );
+            double score = objective( rand, 21, opts );
+            if( score < best ){
+                best = score;
+                copy( v0, rand, 21 );
+            }
+        }
+        arrayToConstants( v0, consts );
+
+    }
+
+    fprintf( stderr, "Optimizing paramters:\n" );
+    printConstants( stderr, consts );
 
     double best = patternSearch( &objective, v0, result, 21, opts, &(opts->patopts) );
     
@@ -554,9 +604,9 @@ int assignConstants( Constants* consts, const char* tag, double value ){
 int parseConstants( FILE* f, Constants* consts ){
     
     int n;
-    char tag[20];
+    char tag[128];
     double val;
-    while( ( n = fscanf( f, " %19s = %lf\n", tag, &val ) ) == 2 ){
+    while( ( n = fscanf( f, " %127s = %lf\n", tag, &val ) ) == 2 ){
         if( !assignConstants( consts, tag, val ) ){
             return 0;
         }
@@ -599,9 +649,9 @@ void printConstants( FILE* f, Constants* consts ){
 int parseSpeciesVals( FILE* f, Species* spec ){
 
     int n;
-    char tag[20];
+    char tag[128];
     double val;
-    while( ( n = fscanf( f, " %19s = %lf\n", tag, &val ) ) == 2 ){
+    while( ( n = fscanf( f, " %127s = %lf\n", tag, &val ) ) == 2 ){
         if( strcmp( tag, "rnap" ) == 0 ){
             spec->rnap = val;
         }
@@ -639,9 +689,9 @@ int parseSpeciesVals( FILE* f, Species* spec ){
 int parseOptimOpts( FILE* f, OptimOpts* opts ){
 
     int n;
-    char tag[20];
+    char tag[128];
     double val;
-    while( (n = fscanf( f, " %19s = %lf\n", tag, &val ) ) == 2 ){
+    while( (n = fscanf( f, " %127s = %lf\n", tag, &val ) ) == 2 ){
         //switch on tag to fill values
         if( strcmp( tag, "upper_bound" ) == 0 ){
             opts->upper_bound = val;
@@ -675,6 +725,8 @@ int parseOptimOpts( FILE* f, OptimOpts* opts ){
         }
         else if( strcmp( tag, "burn_in" ) == 0 ){
             opts->burn_in = val;
+        }else if( strcmp( tag, "random" ) == 0 ) {
+            opts->random = (int) val;   
         }else{
             fprintf( stderr, "Unrecognized tag: %s\n", tag );
             return 0;
@@ -687,7 +739,7 @@ int parseOptimOpts( FILE* f, OptimOpts* opts ){
 
 void usage(){
     
-    fprintf( stderr, "Usage: simulate [-h] [-p FILE] [-i FILE] [-o FILE] [-t FLOAT] [-s FLOAT] [-r INT] [-m STRING] [--optimopts FILE] [--min FILE] [--max FILE]\n" );
+    fprintf( stderr, "Usage: simulate [-h] [-r] [-p FILE] [-i FILE] [-o FILE] [-t FLOAT] [-s FLOAT] [-r INT] [-m STRING] [--optimopts FILE] [--min FILE] [--max FILE]\n" );
     fprintf( stderr, "\n-p\t--parameters\tFile containing model parameters\n" );
     fprintf( stderr, "-i\t--initialValues\tFile containing initial values of model components\n" );
     fprintf( stderr, "-t\t--timespan\tTimespan to simulate, simulation runs from t=0 to t=timespan, default=1000\n" );
@@ -712,6 +764,7 @@ int main( int argc, char* argv[] ){
     char* optimopts = NULL;
     char* min_file = NULL;
     char* max_file = NULL;
+    int random = 0;
     double tend = DEFAULT_TEND;
     double tstep = DEFAULT_TSTEP;
     int report_iters = DEFAULT_REPORT_ITERS;
@@ -893,6 +946,15 @@ int main( int argc, char* argv[] ){
             simulate( &params, &init_vals, tend, tstep, out, report_iters );
             break;
         case OPTIMIZE:
+            //printConstants( stderr, &params );
+            //if( optimparams.max != NULL ){
+            //    fprintf( stderr, "Maximum bound: \n" );
+            //    printConstants( stderr, optimparams.max );
+            //}
+            //if( optimparams.min != NULL ){
+            //    fprintf( stderr, "Minimum bound: \n" );
+            //    printConstants( stderr, optimparams.min );
+            //}
             optimize( &params, &init_vals, &optimparams );
             Simulation sim = simulate( &params, &init_vals, tend, tstep, NULL, report_iters );
             printConstants( stderr, &params );
